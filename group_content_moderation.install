@@ -1,0 +1,52 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for group_content_moderation().
+ */
+
+use Drupal\Core\Entity\EntityTypeInterface;
+
+/**
+ * Upgrade path for content_moderation from 8.2.x.
+ *
+ * @see https://www.drupal.org/files/issues/2890189-832-833-upgrade-9.patch
+ */
+function group_content_moderation_update_8001() {
+  // Update max_length of the content_entity_type_id so the unique index can
+  // be added without being too long.
+  // @see https://www.drupal.org/node/2779931
+  $definition = \Drupal::entityDefinitionUpdateManager()->getFieldStorageDefinition('content_entity_type_id', 'content_moderation_state');
+  // Calling `setSetting` with a new `max_length` here doesn't appear to work,
+  // so the database columns are directly updated.
+  $spec = $definition->getColumns();
+  $spec['value']['length'] = EntityTypeInterface::ID_MAX_LENGTH;
+  db_change_field('content_moderation_state_field_data', 'content_entity_type_id', 'content_entity_type_id', $spec['value']);
+  db_change_field('content_moderation_state_field_revision', 'content_entity_type_id', 'content_entity_type_id', $spec['value']);
+
+  // These tables are hanging out for some reason, and entup chokes on them.
+  db_drop_table('field_deleted_revision_98759a4379');
+  db_drop_table('field_deleted_data_98759a4379');
+  db_delete('content_moderation_state_field_revision')
+    ->condition('revision_id', '95499')
+    ->execute();
+}
+
+/**
+ * Manually change the storage schema to have the new field length.
+ *
+ * @see https://www.drupal.org/files/issues/2890189-832-833-upgrade-9.patch
+ */
+function group_content_moderation_update_8002() {
+  $field_manager = \Drupal::getContainer()->get('entity_field.manager');
+  $field_manager->clearCachedFieldDefinitions();
+  $field_storage_configs = $field_manager->getFieldStorageDefinitions('content_moderation_state');
+  $last_installed_repo = \Drupal::getContainer()->get('entity.last_installed_schema.repository');
+  $last_installed_configs = $last_installed_repo->getLastInstalledFieldStorageDefinitions('content_moderation_state');
+  $last_installed_configs['content_entity_type_id'] = $field_storage_configs['content_entity_type_id'];
+  $last_installed_repo->setLastInstalledFieldStorageDefinitions('content_moderation_state', $last_installed_configs);
+  $schema = \Drupal::keyValue('entity.storage_schema.sql')->get('content_moderation_state.field_schema_data.content_entity_type_id');
+  $schema['content_moderation_state_field_data']['fields']['content_entity_type_id']['length'] = 32;
+  $schema['content_moderation_state_field_revision']['fields']['content_entity_type_id']['length'] = 32;
+  \Drupal::keyValue('entity.storage_schema.sql')->set('content_moderation_state.field_schema_data.content_entity_type_id', $schema);
+}

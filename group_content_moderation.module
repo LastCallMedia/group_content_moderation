@@ -1,0 +1,29 @@
+<?php
+
+/**
+ * @file
+ * Module file for group_content_moderation.
+ */
+
+use Drupal\content_moderation\Permissions;
+
+/**
+ * Implements hook_group_permissions_alter().
+ *
+ * Add permissions for group moderation transitions.
+ */
+function group_content_moderation_group_type_permissions_alter(&$permissions) {
+  $permission_handler = new Permissions();
+  $content_moderation_permissions = $permission_handler->transitionPermissions();
+
+  array_walk($content_moderation_permissions, function (&$permission) {
+    $permission = $permission + [
+      'provider' => 'group_content_moderation',
+      'title_args' => [],
+      'description' => [],
+      'description_args' => [],
+    ];
+  });
+
+  $permissions = $permissions + $content_moderation_permissions;
+}

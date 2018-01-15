@@ -1,0 +1,8 @@
+name: 'Group Content Moderation'
+type: 'module'
+description: 'Content Moderation functionality for Group'
+core: '8.x'
+package: 'Custom'
+dependencies:
+  - 'group'
+  - 'content_moderation'
